@@ -9,10 +9,11 @@ class Treatment extends Model
 {
     protected $primaryKey = 'Treatment_ID';
 
-    protected $fillable = ['Diagnosis_ID', 'Treatment_Name', 'description'];
+    protected $fillable = ['Diagnosis_ID', 'Treatment_Name'];
 
-    public function diagnosis(): BelongsTo
-    {
-        return $this->belongsTo(Diagnosis::class, 'Diagnosis_ID');
-    }
+    public function prediction(): BelongsTo
+{
+    return $this->belongsTo(Prediction::class, 'Prediction_ID', 'Prediction_ID');
+}
+
 }

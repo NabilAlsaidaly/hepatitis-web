@@ -39,7 +39,20 @@
                                 <td>{{ $record->CREA }}</td>
                                 <td>{{ $record->GGT }}</td>
                                 <td>{{ $record->PROT }}</td>
-                                <td>{{ $record->prediction->result ?? '—' }}</td>
+                                <td>
+                                    @php
+                                        $labels = [
+                                            0 => '🟢 سليم',
+                                            1 => '🟡 مشتبه بالإصابة',
+                                            2 => '🟠 التهاب كبد',
+                                            3 => '🔴 تليف كبد يرجى مراجعة الطبيب لمتابعة حالتك',
+                                            4 => ' يرجى مراجعة الطبيب في أقرب وقت لمراجعة نتائج التحليل'
+                                        ];
+                                        $predictionValue = $record->prediction->result ?? null;
+                                    @endphp
+
+                                    {{ $predictionValue !== null ? ($labels[$predictionValue] ?? '—') : '—' }}
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>

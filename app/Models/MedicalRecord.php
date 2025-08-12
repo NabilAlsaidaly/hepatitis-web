@@ -42,4 +42,9 @@ class MedicalRecord extends Model
     {
         return $this->hasOne(Diagnosis::class, 'Record_ID');
     }
+
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'Doctor_ID');
+    }
 }

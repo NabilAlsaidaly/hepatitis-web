@@ -14,8 +14,14 @@
 @endsection
 
 @section('content')
-<div class="container">
-    <h4 class="mb-4 text-end">📈 تطور تحاليل الكبد</h4>
+<div class="container text-end" dir="rtl">
+
+    {{-- ✅ العنوان بمحاذاة يمين --}}
+    <h4 class="mb-4 d-flex align-items-center gap-2">
+        📈 <span>تطور تحاليل الكبد</span>
+    </h4>
+
+    {{-- ✅ المخطط يبقى بتنسيقه الطبيعي --}}
     <canvas id="liverChart"></canvas>
 </div>
 @endsection
@@ -43,7 +49,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             borderWidth: 2,
                             pointBackgroundColor: '#007bff',
                             pointRadius: 4,
-                            tension: 0.2
+                            tension: 0.3
                         },
                         {
                             label: 'AST',
@@ -53,7 +59,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             borderWidth: 2,
                             pointBackgroundColor: '#28a745',
                             pointRadius: 4,
-                            tension: 0.2
+                            tension: 0.3
                         },
                         {
                             label: 'BIL',
@@ -63,7 +69,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             borderWidth: 2,
                             pointBackgroundColor: '#dc3545',
                             pointRadius: 4,
-                            tension: 0.2
+                            tension: 0.3
                         }
                     ]
                 },
@@ -72,15 +78,19 @@ document.addEventListener("DOMContentLoaded", function () {
                     plugins: {
                         legend: {
                             position: 'bottom',
+                            align: 'end', // ✅ اجعل العناصر تنطلق من اليمين
                             labels: {
+                                textAlign: 'right',
+                                usePointStyle: true,
                                 font: {
                                     size: 14
-                                },
-                                rtl: true
+                                }
                             }
                         },
                         tooltip: {
-                            rtl: true,
+                            rtl: true, // ✅ اتجاه التولتيب من اليمين
+                            bodyAlign: 'right',
+                            titleAlign: 'right',
                             callbacks: {
                                 label: function(context) {
                                     return `${context.dataset.label}: ${context.parsed.y}`;
@@ -88,16 +98,11 @@ document.addEventListener("DOMContentLoaded", function () {
                             }
                         },
                         title: {
-                            display: true,
-                            text: 'تحليل زمني لنتائج الكبد',
-                            font: {
-                                size: 18,
-                                weight: 'bold'
-                            },
-                            padding: {
-                                bottom: 10
-                            }
+                            display: false // ✅ العنوان موجود خارجيًا بالفعل
                         }
+                    },
+                    layout: {
+                        padding: 10
                     },
                     scales: {
                         x: {

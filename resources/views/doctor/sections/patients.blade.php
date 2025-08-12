@@ -77,14 +77,18 @@
                 <table class="table table-bordered table-sm mt-4">
                     <thead class="table-light">
                         <tr>
-                            <th>🕒 التاريخ</th>
+                            <th>Date</th>
+                            <th>ALB</th>
+                            <th>ALP</th>
                             <th>ALT</th>
                             <th>AST</th>
                             <th>BIL</th>
-                            <th>ALB</th>
+                            <th>CHE</th>
                             <th>CHOL</th>
-                            <th>التشخيص</th>
-                            <th>التنبؤ</th>
+                            <th>CREA</th>
+                            <th>GGT</th>
+                            <th>PROT</th>
+                            <th>AI Result</th>
                         </tr>
                     </thead>
                     <tbody id="recordsTableBody">

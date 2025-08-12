@@ -76,7 +76,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     async function fetchPatients() {
         try {
-            const res = await fetch("/api/patients");
+            const res = await fetch("/patients");
+
             const data = await res.json();
 
             patientTableBody.innerHTML = "";
@@ -148,7 +149,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     };
 
                     try {
-                        const res = await fetch(`/api/patients/${id}`, {
+                        const res = await fetch(`/patients/${id}`, {
                             method: "PUT",
                             headers: {
                                 "Content-Type": "application/json",
@@ -222,7 +223,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!confirm("هل أنت متأكد من حذف المريض؟")) return;
 
         try {
-            const res = await fetch(`/api/patients/${id}`, {
+            const res = await fetch(`/patients/${id}`, {
                 method: "DELETE",
                 headers: {
                     "X-CSRF-TOKEN": document.querySelector(
@@ -248,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const tableBody = document.getElementById("recordsTableBody");
 
         try {
-            const res = await fetch(`/api/patients/${patientId}/records`);
+            const res = await fetch(`/patients/${patientId}/records`);
             const data = await res.json();
 
             nameField.textContent = data.patient.name;
@@ -256,22 +257,40 @@ document.addEventListener("DOMContentLoaded", function () {
             tableBody.innerHTML = "";
 
             data.records.forEach((record) => {
-                const diagnosis = record.diagnosis?.disease_stage ?? "—";
-                const prediction = record.prediction?.result ?? "—";
+    const predictionRaw = record.prediction?.result;
+    const predictionValue = parseInt(predictionRaw);
+    let predictionLabel = "—";
 
-                const row = `
-                <tr>
-                    <td>${record.created_at?.slice(0, 10) ?? "—"}</td>
-                    <td>${record.ALT ?? "—"}</td>
-                    <td>${record.AST ?? "—"}</td>
-                    <td>${record.BIL ?? "—"}</td>
-                    <td>${record.ALB ?? "—"}</td>
-                    <td>${record.CHOL ?? "—"}</td>
-                    <td>${diagnosis}</td>
-                    <td>${prediction}</td>
-                </tr>`;
-                tableBody.innerHTML += row;
-            });
+    if (predictionValue === 0) {
+        predictionLabel = "🟢 سليم";
+    } else if (predictionValue === 1) {
+        predictionLabel = "🟡 مشتبه بالإصابة";
+    } else if (predictionValue === 2) {
+        predictionLabel = "🟠 التهاب كبد";
+    } else if (predictionValue === 3) {
+        predictionLabel = "🔴 تليف كبد";
+    } else if (predictionValue === 4) {
+        predictionLabel = "⚠️ تشمع كبد";
+    }
+
+    const row = `
+        <tr>
+            <td>${record.created_at?.slice(0, 10) ?? "—"}</td>
+            <td>${record.ALB ?? "—"}</td>
+            <td>${record.ALP ?? "—"}</td>
+            <td>${record.ALT ?? "—"}</td>
+            <td>${record.AST ?? "—"}</td>
+            <td>${record.BIL ?? "—"}</td>
+            <td>${record.CHE ?? "—"}</td>
+            <td>${record.CHOL ?? "—"}</td>
+            <td>${record.CREA ?? "—"}</td>
+            <td>${record.GGT ?? "—"}</td>
+            <td>${record.PROT ?? "—"}</td>
+            <td>${predictionLabel}</td>
+        </tr>`;
+    tableBody.innerHTML += row;
+});
+
 
             modal.show();
         } catch (err) {
@@ -333,7 +352,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!patientSelect) return;
 
         try {
-            const res = await fetch("/api/patients");
+            const res = await fetch("/patients");
             const data = await res.json();
 
             patientSelect.innerHTML =
@@ -347,17 +366,23 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function renderProbabilitiesChart(probabilities) {
-    if (!probabilities || !Array.isArray(probabilities)) {
-        return "<span class='text-muted'>غير متوفرة</span>";
-    }
+        if (!probabilities || !Array.isArray(probabilities)) {
+            return "<span class='text-muted'>غير متوفرة</span>";
+        }
 
-    const labels = ["سليم", "مشتبه بالإصابة", "التهاب كبد", "تليف كبد", "تشمع كبد"];
-    let html = '<div class="probabilities-container">';
+        const labels = [
+            "سليم",
+            "مشتبه بالإصابة",
+            "التهاب كبد",
+            "تليف كبد",
+            "تشمع كبد",
+        ];
+        let html = '<div class="probabilities-container">';
 
-    probabilities.forEach((prob, index) => {
-        if (index < labels.length) {
-            const percentage = Math.round(prob * 100);
-            html += `
+        probabilities.forEach((prob, index) => {
+            if (index < labels.length) {
+                const percentage = Math.round(prob * 100);
+                html += `
                 <div class="prob-item mb-1">
                     <small>${labels[index]}: ${percentage}%</small>
                     <div class="progress" style="height: 8px;">
@@ -366,132 +391,256 @@ document.addEventListener("DOMContentLoaded", function () {
                     </div>
                 </div>
             `;
-        }
-    });
-
-    html += '</div>';
-    return html;
-}
-
-
-    if (form) {
-    form.addEventListener("submit", async function (e) {
-        e.preventDefault();
-        resultDiv.innerHTML = `<div class="alert alert-secondary">📡 جاري إرسال البيانات...</div>`;
-
-        const formData = new FormData(form);
-        const jsonData = {};
-        formData.forEach((value, key) => {
-            jsonData[key] = parseFloat(value); // نحول الأرقام
+            }
         });
 
-        try {
-            // 🔹 استدعاء التشخيص
-            const diseaseResponse = await fetch(
-                "/api/predict/disease",
-                request(jsonData)
-            );
+        html += "</div>";
+        return html;
+    }
 
-            if (!diseaseResponse.ok) {
-                const error = await diseaseResponse.json();
-                throw new Error("⚠️ فشل التحليل: " + (error.error || "خطأ غير معروف"));
-            }
+    if (form) {
+        form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+            resultDiv.innerHTML = `<div class="alert alert-secondary">📡 جاري إرسال البيانات...</div>`;
 
-            const diseaseData = await diseaseResponse.json();
+            const formData = new FormData(form);
+            const jsonData = {};
+            formData.forEach((value, key) => {
+                jsonData[key] = parseFloat(value); // نحول الأرقام
+            });
 
-            // ✅ إضافة التصنيف Category بعد التشخيص
-            if (
-                diseaseData &&
-                typeof diseaseData.prediction_result !== "undefined"
-            ) {
-                jsonData.Category = diseaseData.prediction_result;
-            } else {
-                throw new Error("❌ فشل في استخراج التصنيف من استجابة التشخيص.");
-            }
+            try {
+                // 🔹 استدعاء التشخيص
+                const diseaseResponse = await fetch(
+                    "/api/predict/disease",
+                    request(jsonData)
+                );
 
-            // 🔹 استدعاء العلاج
-            const treatmentResponse = await fetch(
-                "/api/predict/treatment",
-                request(jsonData)
-            );
+                if (!diseaseResponse.ok) {
+                    const error = await diseaseResponse.json();
+                    throw new Error(
+                        "⚠️ فشل التحليل: " + (error.error || "خطأ غير معروف")
+                    );
+                }
 
-            if (!treatmentResponse.ok) {
-                const error = await treatmentResponse.json();
-                throw new Error("⚠️ فشل التوصية بالعلاج: " + (error.error || "خطأ غير معروف"));
-            }
+                const diseaseData = await diseaseResponse.json();
 
-            const treatmentData = await treatmentResponse.json();
+                // ✅ إضافة التصنيف Category بعد التشخيص
+                if (
+                    diseaseData &&
+                    typeof diseaseData.prediction_result !== "undefined"
+                ) {
+                    jsonData.Category = diseaseData.prediction_result;
+                } else {
+                    throw new Error(
+                        "❌ فشل في استخراج التصنيف من استجابة التشخيص."
+                    );
+                }
 
-            // ✅ عرض النتائج
-            resultDiv.innerHTML = `
+                // 🔹 استدعاء العلاج
+                const treatmentResponse = await fetch(
+                    "/api/predict/treatment",
+                    request(jsonData)
+                );
+
+                if (!treatmentResponse.ok) {
+                    const error = await treatmentResponse.json();
+                    throw new Error(
+                        "⚠️ فشل التوصية بالعلاج: " +
+                            (error.error || "خطأ غير معروف")
+                    );
+                }
+
+                const treatmentData = await treatmentResponse.json();
+
+                // ✅ عرض النتائج
+                resultDiv.innerHTML = `
                 <div class="alert alert-info shadow fade-in">
                     🧠 <strong>التشخيص:</strong> ${mapPredictionLabel(
                         diseaseData.prediction_result
                     )}<br>
-                    💊 <strong>العلاج:</strong> ${treatmentData.treatment_result}<br>
-                    📊 <strong>احتمالات التصنيف:</strong>
-                    <div class="mt-2">
-                        ${renderProbabilitiesChart(diseaseData.probabilities)}
-                    </div>
+                    💊 <strong>العلاج:</strong> ${
+                        treatmentData.treatment_result
+                    }
                 </div>
             `;
 
-            // ✅ حفظ النتائج
-            await saveResult(
-                patientSelect.value,
-                jsonData,
-                diseaseData,
-                treatmentData
-            );
-            if (saveResult) {
-                console.log("✅ تم الحفظ:", saveResult);
+                // ✅ حفظ النتائج
+                await saveResult(
+                    patientSelect.value,
+                    jsonData,
+                    diseaseData,
+                    treatmentData
+                );
+                if (saveResult) {
+                    console.log("✅ تم الحفظ:", saveResult);
+                }
+            } catch (err) {
+                console.error("❌ خطأ أثناء تحليل البيانات:", err);
+                resultDiv.innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
             }
+        });
+    }
 
+    // ✅ حفظ النتيجة
+    async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
+        try {
+            // استخراج الاحتمالات من استجابة API
+            const probabilities = diseaseData.probabilities || [0, 0, 0, 0, 0];
+
+            const response = await fetch("/records", {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document.querySelector(
+                        'meta[name="csrf-token"]'
+                    ).content,
+                },
+                body: JSON.stringify({
+                    patient_id: parseInt(patientId),
+                    ...jsonData,
+                    prediction: diseaseData.prediction_result,
+                    treatment: treatmentData.treatment_result,
+                    probabilities: probabilities, // استخدام الاحتمالات الحقيقية
+                    confidence: null,
+                }),
+            });
+
+            if (!response.ok) throw new Error("فشل الحفظ: " + response.status);
+            const resData = await response.json();
+            alert(resData.message || "✅ تم الحفظ بنجاح");
         } catch (err) {
-            console.error("❌ خطأ أثناء تحليل البيانات:", err);
-            resultDiv.innerHTML = `<div class="alert alert-danger">⚠️ ${err.message}</div>`;
+            console.error("❌ خطأ أثناء الحفظ:", err);
+            alert("❌ لم يتم الحفظ: " + err.message);
         }
-    });
-}
+    }
 
+    // ... existing code ...
+    // ✅ زر تنظيف البيانات
+    let hasCleanedAnalysis = false;
+    let lastAnalysisSnapshot = {};
 
+    const cleanAnalysisBtn = document.getElementById("cleanData");
+    const analysisFormElem = document.getElementById("analysisForm");
 
+    if (cleanAnalysisBtn && analysisFormElem) {
+        const analysisInputs = analysisFormElem.querySelectorAll("input[name]");
+        const sexInputField = analysisFormElem.querySelector("[name='Sex']");
 
-// ✅ حفظ النتيجة
-async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
-    try {
-        // استخراج الاحتمالات من استجابة API
-        const probabilities = diseaseData.probabilities || [0, 0, 0, 0, 0];
-
-        const response = await fetch("/records", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": document.querySelector(
-                    'meta[name="csrf-token"]'
-                ).content,
-            },
-            body: JSON.stringify({
-                patient_id: parseInt(patientId),
-                ...jsonData,
-                prediction: diseaseData.prediction_result,
-                treatment: treatmentData.treatment_result,
-                probabilities: probabilities, // استخدام الاحتمالات الحقيقية
-                confidence: null,
-            }),
+        // ✅ إعادة تفعيل زر التنظيف عند أي تعديل
+        analysisInputs.forEach((field) => {
+            field.addEventListener("input", () => {
+                hasCleanedAnalysis = false;
+                cleanAnalysisBtn.disabled = false;
+                cleanAnalysisBtn.innerText =
+                    "🧼 تنظيف البيانات (تم تعديل القيم)";
+                cleanAnalysisBtn.classList.add("btn-outline-warning");
+            });
         });
 
-        if (!response.ok) throw new Error("فشل الحفظ: " + response.status);
-        const resData = await response.json();
-        alert(resData.message || "✅ تم الحفظ بنجاح");
-    } catch (err) {
-        console.error("❌ خطأ أثناء الحفظ:", err);
-        alert("❌ لم يتم الحفظ: " + err.message);
-    }
-}
+        // ✅ منطق التنظيف الذكي
+        cleanAnalysisBtn.addEventListener("click", () => {
+            if (hasCleanedAnalysis) {
+                alert(
+                    "⚠️ تم تنظيف البيانات بالفعل. قم بتعديل القيم لإعادة التنظيف."
+                );
+                return;
+            }
 
-// ... existing code ...
+            let wasModified = false;
+            let hasMissingFields = false;
+            const currentFormValues = {};
+
+            // 🧠 تنظيف الجنس
+            if (sexInputField) {
+                let rawSexValue = sexInputField.value.trim().toLowerCase();
+                if (rawSexValue === "") {
+                    hasMissingFields = true;
+                    sexInputField.value = "0"; // افتراضي = ذكر
+                } else if (["0", "ذكر"].includes(rawSexValue)) {
+                    sexInputField.value = "0";
+                } else if (["1", "أنثى"].includes(rawSexValue)) {
+                    sexInputField.value = "1";
+                } else {
+                    const parsed = parseInt(rawSexValue);
+                    sexInputField.value = parsed === 1 ? "1" : "0";
+                }
+            }
+
+            // 🧪 تنظيف بقية الحقول
+            analysisInputs.forEach((inputField) => {
+                const fieldName = inputField.name;
+                const rawInput = inputField.value.trim();
+                currentFormValues[fieldName] = rawInput;
+
+                if (rawInput === "") {
+                    hasMissingFields = true;
+                    return;
+                }
+
+                let fieldValue = parseFloat(rawInput);
+                if (isNaN(fieldValue)) {
+                    hasMissingFields = true;
+                    return;
+                }
+
+                let adjustedValue = fieldValue;
+
+                switch (fieldName) {
+                    case "ALB":
+                        if (fieldValue > 5) adjustedValue = fieldValue / 10;
+                        break;
+                    case "BIL":
+                        if (fieldValue > 1.5) adjustedValue = fieldValue / 10;
+                        break;
+                    case "CHOL":
+                        if (fieldValue > 20) adjustedValue = fieldValue / 10;
+                        break;
+                    case "CREA":
+                        if (fieldValue > 10) adjustedValue = fieldValue / 10;
+                        break;
+                    case "PROT":
+                        if (fieldValue > 8.5) adjustedValue = fieldValue / 10;
+                        break;
+                    default:
+                        break;
+                }
+
+                const rounded = parseFloat(adjustedValue.toFixed(2));
+                if (rounded !== fieldValue) {
+                    inputField.value = rounded;
+                    wasModified = true;
+                }
+            });
+
+            // 🟥 حالة وجود مدخلات ناقصة
+            if (hasMissingFields) {
+                alert(
+                    "⚠️ توجد قيم ناقصة أو غير رقمية. يرجى إكمال الحقول قبل التنظيف."
+                );
+                return;
+            }
+
+            // 🟡 حالة عدم وجود تعديل فعلي
+            const currentJSON = JSON.stringify(currentFormValues);
+            const previousJSON = JSON.stringify(lastAnalysisSnapshot);
+            if (!wasModified && currentJSON === previousJSON) {
+                alert("ℹ️ القيم الحالية نظيفة ولا تحتاج تعديل.");
+                return;
+            }
+
+            // ✅ تم التنظيف
+            alert("✅ تم تنظيف البيانات بناءً على الوحدات الطبية القياسية.");
+            hasCleanedAnalysis = true;
+            lastAnalysisSnapshot = JSON.parse(
+                JSON.stringify(currentFormValues)
+            );
+            cleanAnalysisBtn.disabled = true;
+            cleanAnalysisBtn.innerText = "✅ تم تنظيف البيانات";
+            cleanAnalysisBtn.classList.remove("btn-outline-warning");
+        });
+    }
 
     // -----------------------------------------------------------
     async function initLSTM() {
@@ -501,7 +650,7 @@ async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
 
         // 🧠 تحميل المرضى في القائمة
         try {
-            const res = await fetch("/api/patients");
+            const res = await fetch("/patients");
             const patients = await res.json();
             select.innerHTML = `<option value="">-- اختر مريضاً --</option>`;
             patients.forEach((p) => {
@@ -554,16 +703,34 @@ async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
                     ? "غير متوفرة"
                     : (confidenceValue * 100).toFixed(2) + "%";
 
+                // 📊 تحليل اتجاه تطور الحالة
+                const altDiff = ALT[5] - ALT[0];
+                const astDiff = AST[5] - AST[0];
+                const bilDiff = BIL[5] - BIL[0];
+                const avgChange = (altDiff + astDiff + bilDiff) / 3;
+
+                let trendMessage = "⚠️ الحالة مستقرة أو متذبذبة";
+                let trendColor = "text-warning";
+                if (avgChange > 10) {
+                    trendMessage =
+                        "❗ تشير المؤشرات إلى تدهور الحالة خلال الأشهر القادمة";
+                    trendColor = "text-danger";
+                } else if (avgChange < -10) {
+                    trendMessage = "✅ تشير المؤشرات إلى تحسن ملحوظ في الحالة";
+                    trendColor = "text-success";
+                }
+
                 // ✅ عرض النتيجة
                 resultDiv.innerHTML = `
                 <div class="alert alert-info mb-4">
                     🔮 <strong>النتيجة المتوقعة بعد 6 أشهر:</strong> ${label}<br>
-                    📊 <strong>نسبة الثقة:</strong> ${confidence}
+                    📊 <strong>نسبة الثقة:</strong> ${confidence}<br>
+                    <span class="${trendColor}"><strong>📉 اتجاه الحالة:</strong> ${trendMessage}</span>
                 </div>
                 <canvas id="lstmChart" height="200"></canvas>
             `;
 
-                // 📊 رسم الرسم البياني
+                // 📈 رسم الرسم البياني
                 renderLSTMChart(ALT, AST, BIL);
             } catch (err) {
                 console.error("❌ فشل تحليل LSTM:", err);
@@ -670,17 +837,14 @@ async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
                 refreshedGenerateBtn.innerText = "⏳ جاري إنشاء التقرير...";
 
                 try {
-                    const res = await fetch(
-                        `/api/reports/generate/${patientId}`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "X-CSRF-TOKEN": document.querySelector(
-                                    'meta[name="csrf-token"]'
-                                ).content,
-                            },
-                        }
-                    );
+                    const res = await fetch(`/reports/generate/${patientId}`, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRF-TOKEN": document.querySelector(
+                                'meta[name="csrf-token"]'
+                            ).content,
+                        },
+                    });
 
                     const data = await res.json();
                     if (res.ok) {
@@ -710,7 +874,7 @@ async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
         ];
 
         try {
-            const res = await fetch("/api/patients");
+            const res = await fetch("/patients");
             const data = await res.json();
 
             selects.forEach((select) => {
@@ -729,7 +893,7 @@ async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
     // 📥 جلب التقارير لمريض محدد
     async function fetchReports(patientId) {
         try {
-            const res = await fetch(`/api/reports/list/${patientId}`);
+            const res = await fetch(`/reports/list/${patientId}`);
             const reports = await res.json();
 
             if (Array.isArray(reports) && reports.length > 0) {
@@ -791,7 +955,7 @@ async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
                               )
                               ?.closest("tr");
 
-                    const res = await fetch(`/api/reports/${reportId}`, {
+                    const res = await fetch(`/reports/${reportId}`, {
                         method: "DELETE",
                         headers: {
                             "X-CSRF-TOKEN": document.querySelector(
@@ -854,157 +1018,11 @@ async function saveResult(patientId, jsonData, diseaseData, treatmentData) {
     }
 
     // -----------------------------------------------------------
-    // ⚙️ المعالجة المسبقة
-   async function initPreprocessing() {
-    const select = document.getElementById("pre_patient_id");
-    const tableBody = document.getElementById("preTableBody");
-    const section = document.getElementById("preprocessingContent");
-    const warning = document.getElementById("preWarnings");
-    const noMsg = document.getElementById("noRecordsMessage");
-    const sendButton = document.getElementById("sendToAI");
-
-    try {
-        // تحميل قائمة المرضى
-        const res = await fetch("/api/patients");
-        const data = await res.json();
-
-        select.innerHTML = `<option value="">-- اختر مريضًا --</option>`;
-        data.forEach((p) => {
-            select.innerHTML += `<option value="${p.id}">${p.Name}</option>`;
-        });
-
-        // عند اختيار مريض
-        select.addEventListener("change", async function () {
-            const id = select.value;
-            if (!id) return;
-
-            const res = await fetch(`/api/preprocessing/${id}`);
-            const record = await res.json();
-
-            if (!record || Object.keys(record).length === 0) {
-                section.classList.add("d-none");
-                noMsg.classList.remove("d-none");
-                return;
-            }
-
-            section.classList.remove("d-none");
-            noMsg.classList.add("d-none");
-            warning.classList.add("d-none");
-            tableBody.innerHTML = "";
-
-            let hasIssue = false;
-
-            // ترتيب الحقول
-            const fieldsOrder = [
-                "Age",
-                "Sex",
-                "ALB",
-                "ALP",
-                "ALT",
-                "AST",
-                "BIL",
-                "CHE",
-                "CHOL",
-                "CREA",
-                "GGT",
-                "PROT",
-            ];
-
-            fieldsOrder.forEach((key) => {
-                const value = record[key];
-                let note = "";
-
-                if (value === null || value < 0) {
-                    note = "❗ تحقق من القيمة";
-                    warning.classList.remove("d-none");
-                    hasIssue = true;
-                }
-
-                tableBody.innerHTML += `
-                    <tr>
-                        <td>${key}</td>
-                        <td>${value ?? "غير مدخل"}</td>
-                        <td>${note}</td>
-                    </tr>`;
-            });
-
-            // منع الإرسال في حال وجود أخطاء
-            sendButton.disabled = hasIssue;
-        });
-    } catch (err) {
-        console.error("❌ فشل تحميل البيانات:", err);
-    }
-}
-
-// ✅ إرسال البيانات إلى الذكاء الاصطناعي بعد الضغط على زر التحليل
-document
-    .getElementById("sendToAI")
-    .addEventListener("click", async function () {
-        const rows = document.querySelectorAll("#preTableBody tr");
-        const aiBox = document.getElementById("aiResultBox");
-        const diagnosisText = document.getElementById("aiDiagnosis");
-        const treatmentText = document.getElementById("aiTreatment");
-
-        const data = {};
-        rows.forEach((row) => {
-            const cells = row.querySelectorAll("td");
-            const key = cells[0].innerText;
-            const value = parseFloat(cells[1].innerText);
-            data[key] = isNaN(value) ? null : value;
-        });
-
-        try {
-            // 1️⃣ التشخيص
-            const predRes = await fetch("/api/predict/disease", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
-            });
-
-            const predJson = await predRes.json();
-            console.log("🎯 تشخيص:", predJson);
-
-            if (
-                predJson &&
-                typeof predJson.prediction_result !== "undefined"
-            ) {
-                data.Category = predJson.prediction_result;
-            } else {
-                throw new Error("❌ لم يتم استخراج التصنيف من استجابة التشخيص.");
-            }
-
-            // 2️⃣ العلاج
-            const treatRes = await fetch("/api/predict/treatment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
-            });
-
-            const treatJson = await treatRes.json();
-            console.log("💊 علاج:", treatJson);
-
-            // 3️⃣ عرض النتائج
-            const predictionValue = predJson.prediction_result;
-            const treatmentValue = treatJson.treatment_result;
-            const predictionLabel = mapPredictionLabel(predictionValue);
-
-            diagnosisText.innerHTML = `🔍 التشخيص: <strong>${predictionLabel}</strong>`;
-            treatmentText.innerHTML = `💊 العلاج المقترح: <strong>${treatmentValue}</strong>`;
-            aiBox.classList.remove("d-none");
-
-        } catch (err) {
-            console.error("❌ فشل الاتصال بالذكاء الاصطناعي:", err);
-            aiBox.classList.add("d-none");
-        }
-    });
-
-    // ... existing code ...
-
     // -----------------------------------------------------------
     // 📊 قسم الإحصاءات
     async function loadStats() {
         try {
-            const res = await fetch("/api/stats");
+            const res = await fetch("/doctor/stats");
             const stats = await res.json();
 
             document.getElementById("statPatients").innerText =
@@ -1124,3 +1142,369 @@ document
 
     console.log("✅ dashboard.js loaded");
 });
+function showSection(section) {
+    document
+        .querySelectorAll(".section")
+        .forEach((s) => s.classList.add("d-none"));
+    document.getElementById("section-" + section).classList.remove("d-none");
+}
+
+// إضافة كود ربط صفحة diagnosis-log بصفحة dashboard
+window.addEventListener("DOMContentLoaded", () => {
+    const nav = document.getElementById("nav-doctor-diagnosis-log");
+    if (nav) {
+        nav.addEventListener("click", async () => {
+            showSection("doctor-diagnosis-log");
+            await loadDiagnosisPatients();
+        });
+    }
+
+    const select = document.getElementById("diagnosisPatientSelect");
+    if (select) {
+        select.addEventListener("change", async () => {
+            const patientId = select.value;
+            if (patientId) {
+                await loadDiagnosisByPatient(patientId);
+            } else {
+                resetDiagnosisTable("📭 يرجى اختيار مريض لعرض بياناته.");
+            }
+        });
+    }
+});
+
+async function loadDiagnosisPatients() {
+    try {
+        // إضافة رسالة تحميل
+        const select = document.getElementById("diagnosisPatientSelect");
+        if (!select) return;
+
+        select.innerHTML = `<option value="">⏳ جاري تحميل المرضى...</option>`;
+
+        const res = await fetch("/patients");
+
+        // التحقق من حالة الاستجابة
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const patients = await res.json();
+
+        select.innerHTML = `<option value="">-- اختر مريضًا --</option>`;
+
+        if (Array.isArray(patients) && patients.length > 0) {
+            patients.forEach((p) => {
+                const option = document.createElement("option");
+                option.value = p.id;
+                option.textContent = p.Name || p.name || `مريض ${p.id}`;
+                select.appendChild(option);
+            });
+        } else {
+            select.innerHTML = `<option value="">لا توجد مرضى متاحين</option>`;
+        }
+    } catch (err) {
+        console.error("❌ فشل تحميل المرضى:", err);
+        const select = document.getElementById("diagnosisPatientSelect");
+        if (select) {
+            select.innerHTML = `<option value="">❌ خطأ في تحميل المرضى</option>`;
+        }
+    }
+}
+
+async function loadDiagnosisByPatient(patientId) {
+    const tbody = document.getElementById("diagnosisLogBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5">
+                <div class="alert alert-info text-center">⏳ جاري تحميل التشخيصات...</div>
+            </td>
+        </tr>
+    `;
+
+    try {
+        const res = await fetch(`/diagnoses/list?patient_id=${patientId}`);
+
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+            resetDiagnosisTable("📭 لا توجد تشخيصات لهذا المريض.");
+            return;
+        }
+
+        tbody.innerHTML = "";
+        data.forEach((d, i) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${i + 1}</td>
+                <td>${d.patient_name || d.patient?.Name || "—"}</td>
+                <td>${d.date || d.created_at?.split("T")[0] || "—"}</td>
+                <td>${d.diagnosis || d.final_diagnosis || "—"}</td>
+                <td>${d.prescription || d.treatment || "—"}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    } catch (err) {
+        console.error("❌ فشل تحميل التشخيصات:", err);
+        resetDiagnosisTable("❌ حدث خطأ أثناء تحميل البيانات.");
+    }
+}
+
+function resetDiagnosisTable(message) {
+    const tbody = document.getElementById("diagnosisLogBody");
+    if (!tbody) return;
+
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5">
+                <div class="alert alert-warning text-center">${message}</div>
+            </td>
+        </tr>
+    `;
+}
+
+// /----------------------------------------/
+// الوصفة الطبية
+window.addEventListener("DOMContentLoaded", () => {
+    // ✅ واجهة "الوصفة الطبية"
+    const navFinalDiagnosis = document.getElementById("nav-final-diagnosis");
+    const selectPrescription = document.getElementById("patientSelect");
+
+    if (navFinalDiagnosis) {
+        navFinalDiagnosis.addEventListener("click", async () => {
+            showSection("final-diagnosis");
+            await fetchPatientsForPrescription();
+        });
+    }
+
+    if (selectPrescription) {
+        selectPrescription.addEventListener("change", async () => {
+            const patientId = selectPrescription.value;
+            if (!patientId) return;
+            await loadLatestRecord(patientId);
+        });
+    }
+
+    const form = document.getElementById("diagnosisForm");
+    if (form) {
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            await submitFinalDiagnosis();
+        });
+    }
+
+    // ✅ واجهة "تشخيصاتي"
+    const navLog = document.getElementById("nav-doctor-diagnosis-log");
+    const selectLog = document.getElementById("patientSelectDiagnosis1");
+    const tbodyLog = document.querySelector("#diagnosisLogContainer tbody");
+    let patientsLoaded = false;
+
+    if (navLog) {
+        navLog.addEventListener("click", () => {
+            showSection("doctor-diagnosis-log");
+            if (!patientsLoaded) {
+                fetchPatientsForDiagnosisLog();
+                patientsLoaded = true;
+            }
+            if (tbodyLog) {
+                tbodyLog.innerHTML = `<tr><td colspan="5" class="text-muted">👈 يرجى اختيار مريض لعرض التشخيصات.</td></tr>`;
+            }
+        });
+    }
+
+    if (selectLog) {
+        selectLog.addEventListener("change", async () => {
+            const patientId = selectLog.value;
+            if (!patientId) {
+                tbodyLog.innerHTML = `<tr><td colspan="5" class="text-muted">👈 يرجى اختيار مريض لعرض التشخيصات.</td></tr>`;
+                return;
+            }
+            await loadDiagnosisLog(patientId);
+        });
+    }
+});
+
+// 🟡 دالة جلب المرضى لواجهة الوصفة الطبية
+async function fetchPatientsForPrescription() {
+    try {
+        const res = await fetch("/patients");
+        const patients = await res.json();
+
+        const select = document.getElementById("patientSelect");
+        if (!select) return;
+
+        select.innerHTML = `<option value="">-- اختر المريض --</option>`;
+        patients.forEach((p) => {
+            const option = document.createElement("option");
+            option.value = p.id;
+            option.textContent = p.Name;
+            select.appendChild(option);
+        });
+    } catch (err) {
+        console.error("❌ فشل تحميل المرضى (الوصفة الطبية):", err);
+    }
+}
+
+// 🟢 دالة جلب المرضى لواجهة "تشخيصاتي"
+async function fetchPatientsForDiagnosisLog() {
+    try {
+        const res = await fetch("/patients");
+        const patients = await res.json();
+
+        const select = document.getElementById("patientSelectDiagnosis1");
+        if (!select) return;
+
+        select.innerHTML = `<option value="">-- اختر مريضًا --</option>`;
+        patients.forEach((p) => {
+            const option = document.createElement("option");
+            option.value = p.id;
+            option.textContent = p.Name;
+            select.appendChild(option);
+        });
+    } catch (err) {
+        console.error("❌ فشل تحميل المرضى (تشخيصاتي):", err);
+    }
+}
+
+// ✅ جلب تشخيصات مريض لواجهة "تشخيصاتي"
+async function loadDiagnosisLog(patientId) {
+    const tbody = document.querySelector("#diagnosisLogContainer tbody");
+    if (!tbody) return;
+
+    tbody.innerHTML = `<tr><td colspan="5" class="text-muted">⏳ جاري تحميل التشخيصات...</td></tr>`;
+
+    try {
+        const res = await fetch(`/diagnoses/list?patient_id=${patientId}`);
+        const data = await res.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-muted">📭 لا توجد تشخيصات لهذا المريض.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = "";
+        data.forEach((d, i) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${i + 1}</td>
+                <td>${d.patient_name || "—"}</td>
+                <td>${d.date || "—"}</td>
+                <td>${d.diagnosis || "—"}</td>
+                <td>${d.prescription || "—"}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    } catch (err) {
+        console.error("❌ فشل تحميل التشخيصات:", err);
+        tbody.innerHTML = `<tr><td colspan="5" class="text-danger">❌ فشل تحميل التشخيصات.</td></tr>`;
+    }
+}
+
+// ✅ جلب آخر سجل لواجهة الوصفة الطبية
+async function loadLatestRecord(patientId) {
+    try {
+        const res = await fetch(`/patients/${patientId}/latest-record`);
+        if (!res.ok) {
+            const errorData = await res.json();
+            alert("❌ فشل تحميل السجل: " + (errorData?.error ?? "خطأ غير معروف"));
+            return;
+        }
+
+        const data = await res.json();
+        if (!data.record_id) {
+            alert("⚠️ لا يوجد سجل تحاليل لهذا المريض.");
+            return;
+        }
+
+        // ✅ عرض التحاليل
+        document.getElementById("recordId").value = data.record_id;
+        document.getElementById("altCell").textContent = data.alt ?? "—";
+        document.getElementById("astCell").textContent = data.ast ?? "—";
+        document.getElementById("alpCell").textContent = data.alp ?? "—";
+        document.getElementById("bilCell").textContent = data.bil ?? "—";
+        document.getElementById("cheCell").textContent = data.che ?? "—";
+        document.getElementById("albCell").textContent = data.alb ?? "—";
+        document.getElementById("cholCell").textContent = data.chol ?? "—";
+        document.getElementById("creaCell").textContent = data.crea ?? "—";
+        document.getElementById("ggtCell").textContent = data.ggt ?? "—";
+        document.getElementById("protCell").textContent = data.prot ?? "—";
+
+        // ✅ تحويل التنبؤ الرقمي إلى وصف
+        let predictionLabel = "غير متوفر";
+        const predictionValue = parseInt(data.prediction);
+
+        if (predictionValue === 0) {
+            predictionLabel = "🟢 سليم";
+        } else if (predictionValue === 1) {
+            predictionLabel = "🟡 مشتبه بالإصابة";
+        } else if (predictionValue === 2) {
+            predictionLabel = "🟠 التهاب كبد";
+        } else if (predictionValue === 3) {
+            predictionLabel = "🔴 تليف كبد ";
+        } else if (predictionValue === 4) {
+            predictionLabel = "⚠️ تشمع كبد";
+        }
+
+        document.getElementById("predictionCell").textContent = predictionLabel;
+        document.getElementById("treatmentCell").textContent = data.suggested_treatment ?? "غير متوفر";
+
+        document.getElementById("recordDetails").classList.remove("d-none");
+        document.getElementById("diagnosisForm").classList.remove("d-none");
+    } catch (err) {
+        console.error("❌ استثناء أثناء تحميل السجل:", err);
+        alert("❌ حدث خطأ غير متوقع أثناء تحميل السجل الطبي.");
+    }
+}
+
+
+// ✅ إرسال التشخيص النهائي
+async function submitFinalDiagnosis() {
+    const recordId = document.getElementById("recordId").value;
+    const finalDiagnosis = document.getElementById("finalDiagnosis").value;
+    const prescription = document.getElementById("prescription").value;
+
+    if (!recordId) {
+        document.getElementById(
+            "diagnosisMessage"
+        ).innerHTML = `<div class="alert alert-warning mt-3">⚠️ لم يتم العثور على سجل التحاليل. تأكد من اختيار مريض.</div>`;
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("record_id", recordId);
+    formData.append("final_diagnosis", finalDiagnosis);
+    formData.append("prescription", prescription);
+
+    try {
+        const res = await fetch("/diagnoses/final", {
+            method: "POST",
+            headers: {
+                "X-CSRF-TOKEN": document.querySelector(
+                    'meta[name="csrf-token"]'
+                ).content,
+            },
+            body: formData,
+            credentials: "same-origin",
+        });
+
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+            throw new Error("❌ الاستجابة ليست JSON.");
+        }
+
+        const result = await res.json();
+        document.getElementById(
+            "diagnosisMessage"
+        ).innerHTML = `<div class="alert alert-success mt-3">✅ تم حفظ التشخيص النهائي بنجاح.</div>`;
+        document.getElementById("diagnosisForm").reset();
+    } catch (err) {
+        console.error("❌ فشل الحفظ:", err);
+        document.getElementById(
+            "diagnosisMessage"
+        ).innerHTML = `<div class="alert alert-danger mt-3">❌ حدث خطأ أثناء حفظ البيانات. يرجى المحاولة لاحقًا.</div>`;
+    }
+}

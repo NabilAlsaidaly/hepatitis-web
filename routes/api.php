@@ -28,28 +28,4 @@ Route::post('/predict/disease', [MLPredictionController::class, 'predictDisease'
 Route::post('/predict/treatment', [MLPredictionController::class, 'predictTreatment']);
 Route::post('/predict/lstm', [MLPredictionController::class, 'predictLSTM']);
 Route::post('/records/lstm', [DiagnosisController::class, 'storeLSTM']);
-
-
-
-Route::get('/patients', [PatientController::class, 'list']);
-
-Route::put('/patients/{id}', [PatientController::class, 'update']);
-Route::delete('/patients/{id}', [PatientController::class, 'destroy']);
-
-
-Route::get('/preprocessing/{id}', [MedicalRecordController::class, 'preprocessing']);
-
 Route::get('/stats', [StatsController::class, 'summary']);
-Route::post('/reports', [ReportController::class, 'store']);
-Route::get('/reports/{patient_id}', [ReportController::class, 'list']);
-Route::get('/patients/{id}/records', [PatientController::class, 'records']);
-
-
-// 📄 توليد تقرير PDF تلقائي لمريض محدد
-Route::post('/reports/generate/{patientId}', [ReportController::class, 'generateReport']);
-
-// 📂 جلب كل التقارير لمريض محدد
-Route::get('/reports/list/{patientId}', [ReportController::class, 'list']);
-Route::delete('/reports/{id}', [ReportController::class, 'destroy']);
-
-Route::get('/preprocessing/{patientId}', [MedicalRecordController::class, 'latestForPatient']);
