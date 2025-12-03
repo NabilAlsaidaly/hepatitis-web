@@ -115,7 +115,6 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/doctors/{id}', [AdminController::class, 'updateDoctor'])->name('doctors.update');
     Route::delete('/doctors/{id}', [AdminController::class, 'deleteDoctor'])->name('doctors.delete');
     Route::get('/patients-doctors', [AdminController::class, 'patientsWithDoctors'])->name('patients-doctors');
-
 });
 Route::post('/admin/logout', function () {
     Auth::logout();
